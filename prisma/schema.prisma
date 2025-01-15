@@ -13,19 +13,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model Workflow {
-  id String @id @default(cuid())
-  userId String
-  name String
-  description String?
-  definition String @db.Text
-  status String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  description   String?
+  definition    String    @db.Text
+  status        String // draft or published
+  lastRunAt     DateTime?
+  lastRunId     String?
+  lastRunStatus String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // user cannot have two workflows with the same name
+  executions WorkflowExecution[]
 
-  @@unique([name,userId])
-  
+  @@unique([name, userId])
+}
+
+model WorkflowExecution {
+  id              String    @id @default(cuid())
+  workflowId      String
+  userId          String
+  trigger         String
+  status          String
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  definition      String    @db.Text
+  creditsConsumed Int       @default(0)
+
+  workflow Workflow         @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  phases   ExecutionPhase[]
+}
+
+model ExecutionPhase {
+  id          String    @id @default(cuid())
+  userId      String
+  status      String
+  number      Int
+  node        String    @db.Text
+  name        String
+  startedAt   DateTime?
+  completedAt DateTime?
+  inputs      String?   @db.LongText
+  outputs     String?   @db.LongText
+
+  creditsConsumed     Int?
+  workflowExecutionId String
+  execution           WorkflowExecution @relation(fields: [workflowExecutionId], references: [id], onDelete: Cascade)
+  logs                ExecutionLog[]
+}
+
+model ExecutionLog {
+  id        String   @id @default(cuid())
+  logLevel  String
+  message   String
+  timestamp DateTime @default(now())
+
+  executionPhaseId String
+  executionPhase   ExecutionPhase @relation(fields: [executionPhaseId], references: [id], onDelete: Cascade)
 }
